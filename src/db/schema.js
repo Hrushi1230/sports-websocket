@@ -5,16 +5,15 @@ export const matchStatusEnum = pgEnum('match_status', ['scheduled', 'live', 'fin
 export const matches = pgTable('matches', {
     id: serial('id').primaryKey(),
     sport: text('sport').notNull(),
-    homeTeam: text('home_team').notNull(),
-    away_team: text('away_team').notNull(),
+    homeTeam: text('home_team').notNull(), // Left side: CamelCase
+    awayTeam: text('away_team').notNull(), // Change away_team to awayTeam
     status: matchStatusEnum('status').notNull().default('scheduled'),
-    startTime: timestamp('start_time'),
-    endTime: timestamp('end_time'),
+    startTime: timestamp('start_time'),    // Left side: CamelCase
+    endTime: timestamp('end_time'),        // Left side: CamelCase
     homeScore: integer('home_score').notNull().default(0),
     awayScore: integer('away_score').notNull().default(0),
     createdAt: timestamp('created_at').notNull().defaultNow(),
 });
-
 export const commentary = pgTable('commentary', {
     id: serial('id').primaryKey(),
     matchId: integer('match_id').notNull().references(() => matches.id),
