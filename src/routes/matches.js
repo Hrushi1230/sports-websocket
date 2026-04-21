@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { desc } from "drizzle-orm";
 import {
     listMatchsQuerySchema,
     createMatchSchema,
@@ -16,24 +17,24 @@ matchRouter.get('/', async (req, res) => {
     const result = listMatchsQuerySchema.safeParse(req.query);
 
     if (!result.success) {
-        return res.status(400).json({ errors: result.error.errors });
+        return res.status(400).json({ errors: result.error.issues });
     }
 
     const limit = Math.min(result.data.limit ?? 50, MAX_LIMIT);
     try {
-        const data = await db.select.from(matches).orderBy((desc(matches.createdAt))).limit(limit);
-        res.json({ data })
+        const data = await db.select().from(matches).orderBy(desc(matches.createdAt)).limit(limit);
+        return res.json({ data });
     } catch (error) {
-        res.status(500).json({ error: 'Failed to list matches.' });
+        console.error('Error listing matches:', error);
+        return res.status(500).json({ error: 'Failed to list matches.', details: error.message || String(error) });
     }
-    res.status(200).json({ message: 'Matches List', query: result.data });
 });
 
 // POST /matches - Create a new match with body validation
 matchRouter.post('/', async (req, res) => {
     const parsed = createMatchSchema.safeParse(req.body);
     if (!parsed.success) {
-        return res.status(400).json({ error: 'Invalid payload', details: JSON.stringify(parsed.error) });
+        return res.status(400).json({ error: 'Invalid payload', details: parsed.error.issues });
     }
     const { data: { startTime, endTime, homeScore, awayScore } } = parsed;
     try {
@@ -46,10 +47,15 @@ matchRouter.post('/', async (req, res) => {
             status: getMatchStatus(startTime, endTime)
         }).returning();
 
+        if (res.app.locals.broadcastMatchCreated) {
+            res.app.locals.broadcastMatchCreated(event);
+        }
+
         res.status(201).json({ data: event });
 
-    } catch (e) {
-        res.status(500).json({ error: 'Failed to create match', details: JSON.stringify(e) });
-    }
+        } catch (e) {
+            console.error('Error creating match:', e);
+            return res.status(500).json({ error: 'Failed to create match', details: e.message || String(e) });
+        }
 
 });
